@@ -11,8 +11,8 @@ RUN npm install
 # Copy rest of the code
 COPY . .
 
-# Rename env.example if .env.local is not committed
+# Rename env.example to .env.local if you're not committing .env.local
 COPY .env.example .env.local
 
-# Run the run.ts script using the defined npm script
-CMD ["npm", "run", "docker"]
+# Start the Express API using your 'api' script
+CMD ["npm", "run", "api"]
