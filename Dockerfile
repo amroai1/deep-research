@@ -1,16 +1,18 @@
-FROM node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+# Use Node 22
+FROM node:22-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Only copy package.json first to leverage Docker caching for dependencies
-COPY package.json ./
-
+# Install dependencies
+COPY package.json package-lock.json* ./
 RUN npm install
 
-# Copy the rest of the code (after installing dependencies to avoid unnecessary reinstalls)
+# Copy rest of the code
 COPY . .
 
-# Rename env.example to .env.local
-COPY ./.env.example ./.env.local
+# Rename env.example if .env.local is not committed
+COPY .env.example .env.local
 
+# Run the run.ts script using the defined npm script
 CMD ["npm", "run", "docker"]
