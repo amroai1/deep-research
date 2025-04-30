@@ -1,3 +1,12 @@
+import * as fs from 'fs/promises';     // only needed if you still write to disk
+import { getModel } from './ai/providers';
+import { generateFeedback } from './feedback';
+import {
+  deepResearch,
+  writeFinalAnswer,
+  writeFinalReport,
+} from './deep-research';
+
 export async function runResearch({
   initialQuery,
   followUpAnswers = [],
@@ -16,16 +25,19 @@ export async function runResearch({
   let combinedQuery = initialQuery;
 
   if (isReport && followUpAnswers.length === 0) {
+    // Generate follow-up questions if no answers provided
     const followUpQuestions = await generateFeedback({ query: initialQuery });
 
-    // For now, skip asking for answers; assume default or empty input.
     combinedQuery = `
 Initial Query: ${initialQuery}
 Follow-up Questions and Answers:
-${followUpQuestions.map((q, i) => `Q: ${q}\nA: ${followUpAnswers[i] || ''}`).join('\n')}
+${followUpQuestions
+  .map((q, i) => `Q: ${q}\nA: ${followUpAnswers[i] || ''}`)
+  .join('\n')}
 `;
   }
 
+  // Perform the core deep research
   const { learnings, visitedUrls } = await deepResearch({
     query: combinedQuery,
     breadth,
@@ -33,6 +45,7 @@ ${followUpQuestions.map((q, i) => `Q: ${q}\nA: ${followUpAnswers[i] || ''}`).joi
   });
 
   if (isReport) {
+    // Generate and return a full report
     const report = await writeFinalReport({
       prompt: combinedQuery,
       learnings,
@@ -45,6 +58,7 @@ ${followUpQuestions.map((q, i) => `Q: ${q}\nA: ${followUpAnswers[i] || ''}`).joi
       urls: visitedUrls,
     };
   } else {
+    // Generate and return a concise answer
     const answer = await writeFinalAnswer({
       prompt: combinedQuery,
       learnings,
