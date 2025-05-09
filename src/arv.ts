@@ -22,22 +22,19 @@ const detailedPropertySchema = {
 // Function to extract detailed property data from a URL
 async function extractDetailedPropertyData(url: string) {
   try {
-    // Use crawlUrl with updated v1 API format
+    // Use crawlUrl with Firecrawl v1 API format
     const crawlResult = await firecrawl.crawlUrl(url, {
-      pageOptions: {
-        onlyMainContent: true, // Focus on main content to reduce noise
-      },
-      crawlerOptions: {
-        returnFormat: 'extract', // Use extract format directly
-        extract: detailedPropertySchema,
+      onlyMainContent: true, // Top-level option
+      extractorOptions: {
+        extractionSchema: detailedPropertySchema, // Use extractionSchema for structured data
       },
     });
 
     // crawlUrl returns an array; take the first result if available
-    if (Array.isArray(crawlResult) && crawlResult.length > 0 && crawlResult[0].extract) {
-      return crawlResult[0].extract;
+    if (Array.isArray(crawlResult) && crawlResult.length > 0 && crawlResult[0].data?.extracted) {
+      return crawlResult[0].data.extracted;
     }
-    console.warn(`No extract data found for ${url}`);
+    console.warn(`No extracted data found for ${url}`);
     return null;
   } catch (e) {
     console.error(`Error crawling ${url}:`, e);
@@ -149,23 +146,21 @@ export async function findARV({
   comps: any[];
 }) {
   // Validate the provided comps
-  const validatedComps = await validateComps(mainProperty, comps);
+  let validatedComps = await validateComps(mainProperty, comps);
 
   // If no comps are validated, use provided comps with fallback details
   if (validatedComps.length === 0) {
     console.warn('No validated comps found; proceeding with provided comps for ARV estimation');
-    validatedComps.push(
-      ...comps.map((comp) => ({
-        ...comp,
-        details: {
-          neighborhood: 'Unknown',
-          hasPool: false,
-          lotSize: 0,
-          yearBuilt: 0,
-          condition: 'Unknown',
-        },
-      }))
-    );
+    validatedComps = comps.map((comp) => ({
+      ...comp,
+      details: {
+        neighborhood: 'Unknown',
+        hasPool: false,
+        lotSize: 0,
+        yearBuilt: 0,
+        condition: 'Unknown',
+      },
+    }));
   }
 
   // Calculate ARV
