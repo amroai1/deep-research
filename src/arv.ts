@@ -22,22 +22,18 @@ const detailedPropertySchema = {
 // Function to extract detailed property data from a URL
 async function extractDetailedPropertyData(url: string) {
   try {
-    // Use crawlUrl with Firecrawl v1 API format
-    const crawlResult = await firecrawl.crawlUrl(url, {
-      onlyMainContent: true, // Top-level option
-      extractorOptions: {
-        extractionSchema: detailedPropertySchema, // Use extractionSchema for structured data
+    const scrapeResult = await firecrawl.scrapeUrl(url, {
+      jsonOptions: {
+        schema: detailedPropertySchema,
+        systemPrompt: "You are a real estate expert extracting property details.",
+        prompt: "Extract the neighborhood, hasPool, lotSize, yearBuilt, and condition from the page.",
       },
     });
 
-    // crawlUrl returns an array; take the first result if available
-    if (Array.isArray(crawlResult) && crawlResult.length > 0 && crawlResult[0].data?.extracted) {
-      return crawlResult[0].data.extracted;
-    }
-    console.warn(`No extracted data found for ${url}`);
-    return null;
+    // The structured data is in scrapeResult.llm_extraction
+    return scrapeResult.llm_extraction || null;
   } catch (e) {
-    console.error(`Error crawling ${url}:`, e);
+    console.error(`Error scraping ${url}:`, e);
     return null;
   }
 }
@@ -113,7 +109,7 @@ async function calculateARV(mainProperty: any, validatedComps: any[]) {
     - Condition: ${mainProperty.details.condition}
 
     Validated Comps:
-${compsString}
+    ${compsString}
 
     Analyze the similarities and differences to provide a single estimated ARV value in dollars and a brief explanation.
   `;
@@ -148,7 +144,7 @@ export async function findARV({
   // Validate the provided comps
   let validatedComps = await validateComps(mainProperty, comps);
 
-  // If no comps are validated, use provided comps with fallback details
+  // If no comps are validated, use provided comps with default details
   if (validatedComps.length === 0) {
     console.warn('No validated comps found; proceeding with provided comps for ARV estimation');
     validatedComps = comps.map((comp) => ({
