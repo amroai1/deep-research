@@ -22,15 +22,18 @@ const detailedPropertySchema = {
 // Function to extract detailed property data from a URL
 async function extractDetailedPropertyData(url: string) {
   try {
-    // Use crawlUrl instead of scrape (adjust based on SDK version)
+    // Use crawlUrl with updated v1 API format
     const crawlResult = await firecrawl.crawlUrl(url, {
-      scraperOptions: {
-        formats: ['extract'],
-        extract: { schema: detailedPropertySchema },
+      pageOptions: {
+        onlyMainContent: true, // Focus on main content to reduce noise
+      },
+      crawlerOptions: {
+        returnFormat: 'extract', // Use extract format directly
+        extract: detailedPropertySchema,
       },
     });
 
-    // crawlUrl returns an array of results; take the first one if available
+    // crawlUrl returns an array; take the first result if available
     if (Array.isArray(crawlResult) && crawlResult.length > 0 && crawlResult[0].extract) {
       return crawlResult[0].extract;
     }
@@ -113,14 +116,14 @@ async function calculateARV(mainProperty: any, validatedComps: any[]) {
     - Condition: ${mainProperty.details.condition}
 
     Validated Comps:
-    ${compsString}
+${compsString}
 
     Analyze the similarities and differences to provide a single estimated ARV value in dollars and a brief explanation.
   `;
 
   const res = await generateObject({
     model: getModel(),
-    system: systemPrompt(),
+    system: systemPrompt, // Treat systemPrompt as a string
     prompt,
     schema: z.object({
       arv: z.number(),
@@ -148,13 +151,21 @@ export async function findARV({
   // Validate the provided comps
   const validatedComps = await validateComps(mainProperty, comps);
 
-  // If no comps are validated, return a fallback result using provided comps
+  // If no comps are validated, use provided comps with fallback details
   if (validatedComps.length === 0) {
     console.warn('No validated comps found; proceeding with provided comps for ARV estimation');
-    validatedComps.push(...comps.map((comp) => ({
-      ...comp,
-      details: { neighborhood: 'Unknown', hasPool: false, lotSize: 0, yearBuilt: 0, condition: 'Unknown' },
-    })));
+    validatedComps.push(
+      ...comps.map((comp) => ({
+        ...comp,
+        details: {
+          neighborhood: 'Unknown',
+          hasPool: false,
+          lotSize: 0,
+          yearBuilt: 0,
+          condition: 'Unknown',
+        },
+      }))
+    );
   }
 
   // Calculate ARV
