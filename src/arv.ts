@@ -22,13 +22,22 @@ const detailedPropertySchema = {
 // Function to extract detailed property data from a URL
 async function extractDetailedPropertyData(url: string) {
   try {
-    const scrapeResult = await firecrawl.scrape(url, {
-      formats: ['extract'],
-      extract: { schema: detailedPropertySchema },
+    // Use crawlUrl instead of scrape (adjust based on SDK version)
+    const crawlResult = await firecrawl.crawlUrl(url, {
+      scraperOptions: {
+        formats: ['extract'],
+        extract: { schema: detailedPropertySchema },
+      },
     });
-    return scrapeResult.extract || null;
+
+    // crawlUrl returns an array of results; take the first one if available
+    if (Array.isArray(crawlResult) && crawlResult.length > 0 && crawlResult[0].extract) {
+      return crawlResult[0].extract;
+    }
+    console.warn(`No extract data found for ${url}`);
+    return null;
   } catch (e) {
-    console.error(`Error scraping ${url}:`, e);
+    console.error(`Error crawling ${url}:`, e);
     return null;
   }
 }
@@ -80,11 +89,11 @@ async function calculateARV(mainProperty: any, validatedComps: any[]) {
       (comp) => `
     - Address: ${comp.address}
     - Sale Price: $${comp.hdpData.homeInfo.price || 'N/A'}
-    - Neighborhood: ${comp.details.neighborhood}
-    - Has Pool: ${comp.details.hasPool ? 'Yes' : 'No'}
-    - Lot Size: ${comp.details.lotSize} sqft
-    - Year Built: ${comp.details.yearBuilt}
-    - Condition: ${comp.details.condition}
+    - Neighborhood: ${comp.details?.neighborhood || 'Unknown'}
+    - Has Pool: ${comp.details?.hasPool ? 'Yes' : 'No'}
+    - Lot Size: ${comp.details?.lotSize || 'Unknown'} sqft
+    - Year Built: ${comp.details?.yearBuilt || 'Unknown'}
+    - Condition: ${comp.details?.condition || 'Unknown'}
   `
     )
     .join('\n');
@@ -139,8 +148,13 @@ export async function findARV({
   // Validate the provided comps
   const validatedComps = await validateComps(mainProperty, comps);
 
-  if (validatedComps.length < 1) {
-    throw new Error('No validated comparable properties found');
+  // If no comps are validated, return a fallback result using provided comps
+  if (validatedComps.length === 0) {
+    console.warn('No validated comps found; proceeding with provided comps for ARV estimation');
+    validatedComps.push(...comps.map((comp) => ({
+      ...comp,
+      details: { neighborhood: 'Unknown', hasPool: false, lotSize: 0, yearBuilt: 0, condition: 'Unknown' },
+    })));
   }
 
   // Calculate ARV
