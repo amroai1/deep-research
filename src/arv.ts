@@ -20,29 +20,33 @@ const detailedPropertySchema = {
 // Function to extract detailed property data from a URL
 async function extractDetailedPropertyData(url: string) {
   try {
-    // Primary attempt: JSON schema-based extraction
-    const scrapeResult = await firecrawl.scrapeUrl(url, {
-      jsonOptions: {
+    // First attempt: JSON schema-based extraction
+    let scrapeResult = await firecrawl.scrapeUrl(url, {
+      extract: {
         schema: detailedPropertySchema,
         systemPrompt: "You are a real estate expert extracting property details.",
         prompt: "Extract the neighborhood, hasPool, lotSize, yearBuilt, and condition from the page.",
       },
-      formats: ['markdown'], // Include Markdown format as fallback
     });
 
-    let result = scrapeResult.llm_extraction || null;
+    let result = scrapeResult.data?.extract || null;
 
     // Fallback to Markdown if JSON extraction fails
-    if (!result && scrapeResult.markdown) {
-      // Process Markdown to extract key details (simplified parsing)
-      const markdown = scrapeResult.markdown;
-      result = {
-        neighborhood: extractFromMarkdown(markdown, 'neighborhood') || 'Unknown',
-        hasPool: extractFromMarkdown(markdown, 'pool')?.toLowerCase().includes('pool') || false,
-        lotSize: parseFloat(extractFromMarkdown(markdown, 'lot size') || '0') || 0,
-        yearBuilt: parseInt(extractFromMarkdown(markdown, 'year built') || '0') || 0,
-        condition: extractFromMarkdown(markdown, 'condition') || 'Unknown',
-      };
+    if (!result) {
+      scrapeResult = await firecrawl.scrapeUrl(url, {
+        formats: ['markdown'],
+      });
+
+      if (scrapeResult.data?.markdown) {
+        const markdown = scrapeResult.data.markdown;
+        result = {
+          neighborhood: extractFromMarkdown(markdown, 'neighborhood') || 'Unknown',
+          hasPool: extractFromMarkdown(markdown, 'pool')?.toLowerCase().includes('pool') || false,
+          lotSize: parseFloat(extractFromMarkdown(markdown, 'lot size') || '0') || 0,
+          yearBuilt: parseInt(extractFromMarkdown(markdown, 'year built') || '0') || 0,
+          condition: extractFromMarkdown(markdown, 'condition') || 'Unknown',
+        };
+      }
     }
 
     return result;
