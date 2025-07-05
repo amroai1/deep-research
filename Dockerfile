@@ -11,8 +11,8 @@ RUN npm install
 # Copy rest of the code
 COPY . .
 
-# Rename env.example to .env.local if you're not committing .env.local
-COPY .env.example .env.local
+# Conditionally copy .env.local if .env.example exists
+RUN if [ -f .env.example ]; then cp .env.example .env.local; else echo ".env.example not found, skipping"; fi
 
 # Start the Express API using your 'api' script
 CMD ["npm", "run", "api"]
